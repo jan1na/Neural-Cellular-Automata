@@ -1,5 +1,6 @@
 import torch
 
+
 def train(model, loader, optimizer, criterion, device):
     model.train()
     total_loss, total_correct = 0, 0
@@ -13,6 +14,7 @@ def train(model, loader, optimizer, criterion, device):
         total_loss += loss.item() * x.size(0)
         total_correct += (out.argmax(1) == y).sum().item()
     return total_loss / len(loader.dataset), total_correct / len(loader.dataset)
+
 
 @torch.no_grad()
 def evaluate(model, loader, criterion, device):
