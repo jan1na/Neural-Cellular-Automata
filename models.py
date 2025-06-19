@@ -12,22 +12,27 @@ class NCA(nn.Module):
             nn.Conv2d(128, state_dim, kernel_size=1)
         )
         self.readout = nn.Sequential(
-            nn.Conv2d(state_dim, 64, 1),
+            nn.Conv2d(state_dim, 64, kernel_size=1),
             nn.ReLU(),
-            nn.Conv2d(64, num_classes, 1)
+            nn.Conv2d(64, num_classes, kernel_size=1)
         )
 
     def forward(self, x):
+        # batch size, channels (RGB), height, width
         B, C, H, W = x.shape
+        # extend channels to state_dim (often 16 in NCA literature)
         state = torch.zeros(B, self.state_dim, H, W, device=x.device)
+        # set first C channels to input x, rest are zeros
         state[:, :C] = x
 
+        # update state for num_steps
         for _ in range(self.num_steps):
-            y = self.perceive(state)
-            dx = self.update(y)
+            perception_vector = self.perceive(state)
+            dx = self.update(perception_vector)
             state = state + dx
 
         out = self.readout(state)
+        # mean over all class logit over all pixels
         out = out.mean(dim=(2, 3))
         return out
 
@@ -45,6 +50,8 @@ class CNNBaseline(nn.Module):
 
     def forward(self, x):
         x = self.features(x)
+        # Compute average of all pixel values for each channel (B, 128, H, W) -> (B, 128, 1, 1)
         x = self.pool(x)
+        # Flatten the output to feed into the fully connected layer (B, 128, 1, 1) -> (B, 128)
         x = x.view(x.size(0), -1)
         return self.fc(x)
