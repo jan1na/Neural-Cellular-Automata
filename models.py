@@ -17,7 +17,7 @@ class NCA(nn.Module):
             nn.Conv2d(64, num_classes, kernel_size=1)
         )
 
-    def forward(self, x):
+    def forward(self, x, visualize=False):
         # batch size, channels (RGB), height, width
         B, C, H, W = x.shape
         # extend channels to state_dim (often 16 in NCA literature)
@@ -25,16 +25,20 @@ class NCA(nn.Module):
         # set first C channels to input x, rest are zeros
         state[:, :C] = x
 
+        rgb_steps = [x]
+
         # update state for num_steps
         for _ in range(self.num_steps):
             perception_vector = self.perceive(state)
             dx = self.update(perception_vector)
             state = state + dx
+            if visualize:
+                rgb_steps.append(state[:, :C].clone())
 
         out = self.readout(state)
         # mean over all class logit over all pixels
         out = out.mean(dim=(2, 3))
-        return out
+        return out, rgb_steps if visualize else None
 
 
 class CNNBaseline(nn.Module):

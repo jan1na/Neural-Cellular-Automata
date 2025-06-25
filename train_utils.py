@@ -3,7 +3,7 @@ import torch
 import matplotlib.pyplot as plt
 
 
-def train(model, loader, optimizer, criterion, device):
+def train(model, loader, optimizer, criterion, device, is_NCA=False):
     model.train()
     total_loss, total_correct = 0, 0
     loop = tqdm(loader, desc="Training", leave=False)
@@ -11,7 +11,7 @@ def train(model, loader, optimizer, criterion, device):
     for x, y in loop:
         x, y = x.to(device), y.squeeze().to(device)
         optimizer.zero_grad()
-        out = model(x)
+        out = model(x) if not is_NCA else model(x)[0]
         loss = criterion(out, y)
         loss.backward()
         optimizer.step()
@@ -27,14 +27,14 @@ def train(model, loader, optimizer, criterion, device):
 
 
 @torch.no_grad()
-def evaluate(model, loader, criterion, device):
+def evaluate(model, loader, criterion, device, is_NCA=False):
     model.eval()
     total_loss, total_correct = 0, 0
     loop = tqdm(loader, desc="Evaluating", leave=False)
 
     for x, y in loop:
         x, y = x.to(device), y.squeeze().to(device)
-        out = model(x)
+        out = model(x) if not is_NCA else model(x)[0]
         loss = criterion(out, y)
 
         total_loss += loss.item() * x.size(0)
