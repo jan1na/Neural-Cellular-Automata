@@ -1,6 +1,7 @@
 from tqdm import tqdm
 import torch
 import matplotlib.pyplot as plt
+import os
 
 
 def train(model, loader, optimizer, criterion, device, is_NCA=False):
@@ -48,6 +49,9 @@ def evaluate(model, loader, criterion, device, is_NCA=False):
 
 
 def plot_training_history(train_losses, train_accuracies, val_losses, val_accuracies, save_path):
+    # Ensure the directory exists
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
     epochs = range(1, len(train_losses) + 1)
 
     plt.figure(figsize=(12, 5))
