@@ -67,7 +67,7 @@ class NCA(nn.Module):
                 rgb_steps.append(state[:, :C].clone())
 
         out = self.readout(state)
-        out = out.mean(dim=(2, 3))
+        out = F.adaptive_max_pool2d(out, 1).squeeze(-1).squeeze(-1)
         return out, rgb_steps if visualize else None
 
 
