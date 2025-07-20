@@ -2,7 +2,7 @@ import torch
 import pygame
 from medmnist import PathMNIST
 import torchvision.transforms as transforms
-from models import NCA
+from models import NCA2
 import os
 import shutil
 
@@ -12,13 +12,12 @@ cache_dir = os.path.expanduser("~/.medmnist")
 os.makedirs(cache_dir, exist_ok=True)
 
 dataset = "pathmnist"
-resolutions = ["", "_64", "_128", "_224"]  # all resolutions
+resolutions = ["", "_64", "_128", "_224"]
 
 for res in resolutions:
     filename = f"{dataset}{res}.npz"
     src = os.path.join("./data", filename)
     dst = os.path.join(cache_dir, filename)
-
     if os.path.exists(src):
         shutil.copyfile(src, dst)
         print(f"Copied {filename} to cache.")
@@ -26,20 +25,17 @@ for res in resolutions:
         print(f"File not found in ./data: {filename}")
 
 pygame.init()
-screen = pygame.display.set_mode((900, 700))
-pygame.display.set_caption("Select Resolution and Image")
 
 font = pygame.font.SysFont(None, 30)
 big_font = pygame.font.SysFont(None, 40)
 
-# Constants
 BG_COLOR = (30, 30, 30)
 BTN_COLOR = (70, 70, 70)
 BTN_HOVER = (100, 100, 100)
 BTN_ACTIVE = (0, 150, 255)
 TEXT_COLOR = (255, 255, 255)
-THUMB_SIZE = 100
-THUMB_MARGIN = 10
+THUMB_SIZE = 200
+THUMB_MARGIN = 40
 
 res_options = [("Original 28x28", ""), ("64x64", "_64"), ("128x128", "_128"), ("224x224", "_224")]
 selected_res_idx = 0
@@ -58,7 +54,7 @@ def load_all_thumbnails():
             img, lbl = dataset[i]
             img = img.clamp(0, 1)
             img = (img * 255).byte().cpu().numpy()
-            img = img.transpose(1, 2, 0)  # CHW -> HWC
+            img = img.transpose(1, 2, 0)
             surf = pygame.surfarray.make_surface(img)
             surf = pygame.transform.scale(surf, (THUMB_SIZE, THUMB_SIZE))
             thumbs.append((surf, lbl))
@@ -66,7 +62,7 @@ def load_all_thumbnails():
     print("Finished loading all thumbnails.")
     return all_thumbs
 
-def draw_button(rect, text, hovered, active):
+def draw_button(screen, rect, text, hovered, active):
     color = BTN_COLOR
     if active:
         color = BTN_ACTIVE
@@ -77,30 +73,39 @@ def draw_button(rect, text, hovered, active):
     txt_rect = txt_surf.get_rect(center=rect.center)
     screen.blit(txt_surf, txt_rect)
 
+def tensor_to_surface(tensor):
+    tensor = tensor.clamp(0, 1)
+    tensor = (tensor * 255).byte().cpu().numpy()
+    img = tensor.transpose(1, 2, 0)
+    return pygame.surfarray.make_surface(img)
+
 def main():
     global selected_res_idx
+    screen = pygame.display.set_mode((900, 700))  # Moved inside main
+    pygame.display.set_caption("Select Resolution and Image")
 
     all_thumbs = load_all_thumbnails()
     thumbs = all_thumbs[res_options[selected_res_idx][1]]
     selected_img_idx = None
     running = True
-    stage = "select"  # stages: select -> visualize
+    stage = "select"
 
     clock = pygame.time.Clock()
 
-    # Button rects for resolution selection
     btn_width = 180
     btn_height = 40
     btn_spacing = 20
     btns = []
     for i, (text, _) in enumerate(res_options):
-        rect = pygame.Rect(20 + i*(btn_width + btn_spacing), 20, btn_width, btn_height)
+        rect = pygame.Rect(20 + i * (btn_width + btn_spacing), 20, btn_width, btn_height)
         btns.append(rect)
 
     step_idx = 0
     vis_clock = pygame.time.Clock()
     rgb_steps = None
     vis_screen = None
+    true_label = None
+    pred_label = None
 
     while running:
         if stage == "select":
@@ -114,11 +119,10 @@ def main():
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     clicked = True
 
-            # Draw resolution buttons
             for i, rect in enumerate(btns):
                 hovered = rect.collidepoint(mx, my)
                 active = (i == selected_res_idx)
-                draw_button(rect, res_options[i][0], hovered, active)
+                draw_button(screen, rect, res_options[i][0], hovered, active)
 
                 if hovered and clicked:
                     if selected_res_idx != i:
@@ -126,9 +130,7 @@ def main():
                         thumbs = all_thumbs[res_options[selected_res_idx][1]]
                         selected_img_idx = None
 
-            # Draw thumbnails grid
             cols = 5
-            rows = 2
             start_x = 20
             start_y = 100
 
@@ -142,49 +144,42 @@ def main():
                 thumb_rects.append(rect)
 
                 border_color = BTN_ACTIVE if idx == selected_img_idx else (255, 255, 255)
-                pygame.draw.rect(screen, border_color, rect.inflate(4,4), 3)
+                pygame.draw.rect(screen, border_color, rect.inflate(4, 4), 3)
                 screen.blit(surf, (x, y))
 
-                # Label below thumbnail
                 label_surf = font.render(f"Label: {label}", True, TEXT_COLOR)
-                label_rect = label_surf.get_rect(midtop=(x + THUMB_SIZE//2, y + THUMB_SIZE + 5))
+                label_rect = label_surf.get_rect(midtop=(x + THUMB_SIZE // 2, y + THUMB_SIZE + 5))
                 screen.blit(label_surf, label_rect)
 
-            # Check if clicked on any thumbnail
             if clicked:
                 for idx, rect in enumerate(thumb_rects):
                     if rect.collidepoint(mx, my):
                         selected_img_idx = idx
                         break
 
-            # Draw instructions
-            instr1 = "Click a resolution button."
-            instr2 = "Click an image thumbnail to select."
-            instr3 = "Press ENTER to start visualization when image is selected."
-            screen.blit(font.render(instr1, True, TEXT_COLOR), (20, 620))
-            screen.blit(font.render(instr2, True, TEXT_COLOR), (20, 645))
-            screen.blit(font.render(instr3, True, TEXT_COLOR), (20, 670))
+            screen.blit(font.render("Click a resolution button.", True, TEXT_COLOR), (20, 620))
+            screen.blit(font.render("Click an image thumbnail to select.", True, TEXT_COLOR), (20, 645))
+            screen.blit(font.render("Press ENTER to start visualization when image is selected.", True, TEXT_COLOR), (20, 670))
 
             keys = pygame.key.get_pressed()
             if selected_img_idx is not None and keys[pygame.K_RETURN]:
                 stage = "visualize"
-
-                # Prepare data for visualization
                 size = int(res_options[selected_res_idx][1][1:]) if res_options[selected_res_idx][1] else 28
                 dataset = PathMNIST(split='test', size=size, transform=transform, download=False)
                 x, label = dataset[selected_img_idx]
                 x = x.unsqueeze(0)
 
-                model = NCA(num_steps=16)
+                model = NCA2()
                 model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
                 model.eval()
 
                 with torch.no_grad():
-                    rgb_steps = model(x, visualize=True)[1]
+                    out, rgb_steps = model(x, visualize=True)
+                    pred_label = out.argmax(dim=1).item()
+                    true_label = label
 
                 vis_screen = pygame.display.set_mode((280, 280))
                 pygame.display.set_caption(f"NCA PathMNIST Visualization (img {selected_img_idx}, res {size}x{size})")
-
                 step_idx = 0
 
             pygame.display.flip()
@@ -197,24 +192,27 @@ def main():
                 surf = tensor_to_surface(img_tensor)
                 surf = pygame.transform.scale(surf, (280, 280))
                 vis_screen.blit(surf, (0, 0))
+
+                label_text = big_font.render(f"True: {true_label} | Pred: {pred_label}", True, TEXT_COLOR)
+                vis_screen.blit(label_text, (10, 240))
+
                 pygame.display.flip()
+                step_idx = (step_idx + 1) % len(rgb_steps)
 
-                step_idx += 1
-                if step_idx >= len(rgb_steps):
-                    step_idx = 0
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        stage = "select"
+                        vis_screen = None
+                        screen = pygame.display.set_mode((900, 700))
+                        pygame.display.set_caption("Select Resolution and Image")
 
-                for event in pygame.event.get():
-                    if event.type == pygame.QUIT:
-                        running = False
             vis_clock.tick(2)
 
     pygame.quit()
 
-def tensor_to_surface(tensor):
-    tensor = tensor.clamp(0, 1)
-    tensor = (tensor * 255).byte().cpu().numpy()
-    img = tensor.transpose(1, 2, 0)  # CHW -> HWC
-    return pygame.surfarray.make_surface(img)
-
 if __name__ == "__main__":
     main()
+

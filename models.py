@@ -51,19 +51,19 @@ class NCA2(nn.Module):
             [[[-1, 0, 1],
               [-2, 0, 2],
               [-1, 0, 1]]], dtype=torch.float32
-        ).expand(state_dim, 1, 3, 3))
+        ).expand(state_dim, 1, 3, 3).clone())
 
         self.register_buffer('sobel_y', torch.tensor(
             [[[-1, -2, -1],
               [0,  0,  0],
               [1,  2,  1]]], dtype=torch.float32
-        ).expand(state_dim, 1, 3, 3))
+        ).expand(state_dim, 1, 3, 3).clone())
 
         self.register_buffer('identity', torch.tensor(
             [[[0, 0, 0],
               [0, 1, 0],
               [0, 0, 0]]], dtype=torch.float32
-        ).expand(state_dim, 1, 3, 3))
+        ).expand(state_dim, 1, 3, 3).clone())
 
         # Total perception: 3 x state_dim channels
         self.update_mlp = nn.Sequential(
