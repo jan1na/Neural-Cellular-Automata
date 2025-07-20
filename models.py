@@ -40,6 +40,8 @@ class NCA(nn.Module):
             nn.Conv2d(64, num_classes, kernel_size=1)
         )
 
+        self.pool = nn.AdaptiveAvgPool2d((1, 1))
+
     def perceive(self, x):
         # x shape: [B, C, H, W]
         dx = F.conv2d(x, self.sobel_x, padding=1, groups=self.state_dim)
@@ -67,7 +69,7 @@ class NCA(nn.Module):
                 rgb_steps.append(state[:, :C].clone())
 
         out = self.readout(state)
-        out = F.adaptive_max_pool2d(out, 1).squeeze(-1).squeeze(-1)
+        out = self.pool(out).view(B, -1)  # Global average pooling to (B, num_classes)
         return out, rgb_steps if visualize else None
 
 
