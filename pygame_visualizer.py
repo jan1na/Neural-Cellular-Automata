@@ -2,11 +2,12 @@ import torch
 import pygame
 from medmnist import PathMNIST
 import torchvision.transforms as transforms
-from models import NCA2
+from models import NCA, CNNBaseline
 import os
 import shutil
 
 model_path = "models/best_nca_pathmnist.pth"
+baseline_path = "models/best_cnn_pathmnist.pth"
 
 cache_dir = os.path.expanduser("~/.medmnist")
 os.makedirs(cache_dir, exist_ok=True)
@@ -81,7 +82,7 @@ def tensor_to_surface(tensor):
 
 def main():
     global selected_res_idx
-    screen = pygame.display.set_mode((900, 700))  # Moved inside main
+    screen = pygame.display.set_mode((1200, 700))  # Moved inside main
     pygame.display.set_caption("Select Resolution and Image")
 
     all_thumbs = load_all_thumbnails()
@@ -106,6 +107,7 @@ def main():
     vis_screen = None
     true_label = None
     pred_label = None
+    baseline_label = None
 
     while running:
         if stage == "select":
@@ -169,14 +171,22 @@ def main():
                 x, label = dataset[selected_img_idx]
                 x = x.unsqueeze(0)
 
-                model = NCA2()
+                model = NCA()
                 model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
                 model.eval()
+
+                baseline = CNNBaseline()
+                baseline.load_state_dict(torch.load(baseline_path, map_location=torch.device('cpu')))
+                baseline.eval()
 
                 with torch.no_grad():
                     out, rgb_steps = model(x, visualize=True)
                     pred_label = out.argmax(dim=1).item()
                     true_label = label
+
+                    out_baseline = baseline(x)
+                    baseline_label = out_baseline.argmax(dim=1).item()
+
 
                 vis_screen = pygame.display.set_mode((280, 280))
                 pygame.display.set_caption(f"NCA PathMNIST Visualization (img {selected_img_idx}, res {size}x{size})")
@@ -193,7 +203,7 @@ def main():
                 surf = pygame.transform.scale(surf, (280, 280))
                 vis_screen.blit(surf, (0, 0))
 
-                label_text = big_font.render(f"True: {true_label} | Pred: {pred_label}", True, TEXT_COLOR)
+                label_text = big_font.render(f"T: {true_label} P: {pred_label} B: {baseline_label}", True, TEXT_COLOR)
                 vis_screen.blit(label_text, (10, 240))
 
                 pygame.display.flip()
@@ -206,7 +216,7 @@ def main():
                     if event.key == pygame.K_ESCAPE:
                         stage = "select"
                         vis_screen = None
-                        screen = pygame.display.set_mode((900, 700))
+                        screen = pygame.display.set_mode((1200, 700))
                         pygame.display.set_caption("Select Resolution and Image")
 
             vis_clock.tick(2)
