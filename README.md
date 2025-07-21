@@ -23,7 +23,7 @@ Make sure the best models are in the ```models/``` directory.
 
 ---
 ## Results
-The NCA model achieves better performance then the CNN baseline on the PathMNIST dataset 28, 64 and 128. In 224 both perform very bad, but the baseline perform slightly better.
+The NCA model achieves better performance then the CNN baseline on the PathMNIST dataset 28, 64 and 128.
 ![](plots/cm_CNN_128x128.png)
 ![](plots/cm_NCA_128x128.png)
 
